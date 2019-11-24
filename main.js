@@ -1,34 +1,34 @@
 class Canvas {
-  constructor(selector, draw) {
-    this.canvas = document.querySelector(selector);
-    this.ctx = this.canvas.getContext('2d');
-    this.shouldRAF = true;
-    this.draw = draw;
+    constructor(selector, draw) {
+        this.canvas = document.querySelector(selector);
+        this.ctx = this.canvas.getContext('2d');
+        this.shouldRAF = true;
+        this.draw = draw;
 
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
-  }
-  
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    }
+
     clear() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
     }
 
-  update(x, y, filled) {
-    return () => {
+    update(x, y, filled) {
+        return () => {
             this.clear();
-        this.draw(
-            layout.polygonCorners(
-                layout.pixelToHex(
-                    new Point(x, y)
-                ).round()
-            ),
-            filled
-        );
-        this.shouldRAF = true;
+            this.draw(
+                layout.polygonCorners(
+                    layout.pixelToHex(
+                        new Point(x, y)
+                    ).round()
+                ),
+                filled
+            );
+            this.shouldRAF = true;
+        }
     }
-  }
 }
 
 class Grid extends Canvas {
@@ -56,19 +56,35 @@ class Map extends Canvas {
     constructor(selector, draw) {
         super(selector, draw);
         this.selectedHexes = [];
+        this.maxHeight = 4;
     }
 
     update(x, y) {
         return () => {
-            const newHex = layout.pixelToHex(new Point(x, y)).round();
-            this.selectedHexes.push(newHex);
+            const clickedHex = layout.pixelToHex(new Point(x, y)).round();
+            const hexExists = this.selectedHexes.findIndex(hex => hex.location.isSame(clickedHex));
 
-            clearCanvas.call(this);
+            if (hexExists === -1) {
+                this.selectedHexes.push({
+                    location: clickedHex,
+                    height: 0
+                });
+            } else {
+                if (this.selectedHexes[hexExists].height < this.maxHeight) {
+                    ++this.selectedHexes[hexExists].height;
+                }
+            }
 
             this.clear();
 
             this.selectedHexes.forEach(hex => {
-                this.draw(layout.polygonCorners(hex), true);
+                this.draw(
+                    layout.polygonCorners(hex.location),
+                    true,
+                    {
+                        color: `hsl(120, ${5 + hex.height}0%, ${5 + hex.height}0%)`
+                    }
+                );
             });
 
             this.shouldRAF = true;
@@ -89,7 +105,13 @@ class Mouse extends Canvas {
             this.clear();
 
             this.selectedHexes.forEach(hex => {
-                this.draw(layout.polygonCorners(hex), true);
+                this.draw(
+                    layout.polygonCorners(hex),
+                    true,
+                    {
+                        color: "blue"
+                    }
+                );
             });
 
             this.shouldRAF = true;
@@ -97,29 +119,30 @@ class Mouse extends Canvas {
     }
 }
 
-function drawHex(hex, filled) {
+function drawHex(hex, filled, options = { color: "black" }) {
     this.ctx.beginPath();
     this.ctx.moveTo(hex[0].x, hex[0].y);
 
     for (let point of hex) {
-      this.ctx.lineTo(point.x, point.y);
+        this.ctx.lineTo(point.x, point.y);
     }
 
     this.ctx.lineTo(hex[0].x, hex[0].y);
+    this.ctx.fillStyle = options.color;
 
     if (filled) {
-      this.ctx.fill();
+        this.ctx.fill();
     } else {
-      this.ctx.stroke();
+        this.ctx.stroke();
     }
 }
 
 function drawMap(layout) {
     return function () {
         for (let qq = 0; qq < window.innerWidth; qq++) {
-            const qOffset = Math.floor(qq/2);
+            const qOffset = Math.floor(qq / 2);
             for (let rr = -qOffset; rr < window.innerHeight - qOffset; rr++) {
-                drawHex.call(this, layout.polygonCorners(new Hex(qq, rr, -qq-rr)));
+                drawHex.call(this, layout.polygonCorners(new Hex(qq, rr, -qq - rr)));
             }
         }
     }
@@ -156,7 +179,7 @@ document.addEventListener('click', event => {
         );
     }
 });
-  
+
 window.onresize = () => {
     if (grid.shouldRAF && mouse.shouldRAF) {
         console.log('rerender');
