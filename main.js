@@ -82,7 +82,7 @@ class Map extends Canvas {
                     layout.polygonCorners(hex.location),
                     true,
                     {
-                        color: `hsl(120, ${5 + hex.height}0%, ${5 + hex.height}0%)`
+                        color: `hsl(${120 + hex.height * 5}, ${50 + hex.height * 10}%, ${50 + hex.height * 10}%)`
                     }
                 );
             });
