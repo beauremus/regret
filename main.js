@@ -1,9 +1,3 @@
-function clearCanvas () {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
-}
-
 class Canvas {
   constructor(selector, draw) {
     this.canvas = document.querySelector(selector);
@@ -15,9 +9,15 @@ class Canvas {
     this.canvas.height = window.innerHeight;
   }
   
+    clear() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    }
+
   update(x, y, filled) {
     return () => {
-        clearCanvas.call(this);
+            this.clear();
         this.draw(
             layout.polygonCorners(
                 layout.pixelToHex(
@@ -41,7 +41,7 @@ class Grid extends Canvas {
             const newHex = layout.pixelToHex(new Point(x, y)).round();
             this.selectedHexes.push(newHex);
 
-            clearCanvas.call(this);
+            this.clear();
 
             this.selectedHexes.forEach(hex => {
                 this.draw(layout.polygonCorners(hex), true);
@@ -65,6 +65,8 @@ class Map extends Canvas {
 
             clearCanvas.call(this);
 
+            this.clear();
+
             this.selectedHexes.forEach(hex => {
                 this.draw(layout.polygonCorners(hex), true);
             });
@@ -84,7 +86,7 @@ class Mouse extends Canvas {
             const newHex = layout.pixelToHex(new Point(x, y)).round();
             this.selectedHexes.push(newHex);
 
-            clearCanvas.call(this);
+            this.clear();
 
             this.selectedHexes.forEach(hex => {
                 this.draw(layout.polygonCorners(hex), true);
