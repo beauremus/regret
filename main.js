@@ -57,9 +57,10 @@ class Map extends Canvas {
         super(selector, draw);
         this.selectedHexes = [];
         this.maxHeight = 4;
+        this.minHeight = -4;
     }
 
-    update(x, y) {
+    update(x, y, shouldRemoveHeight) {
         return () => {
             const clickedHex = layout.pixelToHex(new Point(x, y)).round();
             const hexExists = this.selectedHexes.findIndex(hex => hex.location.isSame(clickedHex));
@@ -70,8 +71,14 @@ class Map extends Canvas {
                     height: 0
                 });
             } else {
-                if (this.selectedHexes[hexExists].height < this.maxHeight) {
-                    ++this.selectedHexes[hexExists].height;
+                if (shouldRemoveHeight) {
+                    if (this.selectedHexes[hexExists].height > this.minHeight) {
+                        --this.selectedHexes[hexExists].height;
+                    }
+                } else {
+                    if (this.selectedHexes[hexExists].height < this.maxHeight) {
+                        ++this.selectedHexes[hexExists].height;
+                    }
                 }
             }
 
@@ -175,14 +182,13 @@ document.addEventListener('click', event => {
     if (map.shouldRAF) {
         map.shouldRAF = false;
         requestAnimationFrame(
-            map.update(event.clientX, event.clientY)
+            map.update(event.clientX, event.clientY, event.altKey)
         );
     }
 });
 
 window.onresize = () => {
     if (grid.shouldRAF && mouse.shouldRAF) {
-        console.log('rerender');
         grid.update().call(grid);
         mouse.update(event.clientX, event.clientY, true)();
     }
