@@ -60,26 +60,28 @@ class Map extends Canvas {
         this.minHeight = -4;
     }
 
-    update(x, y, shouldRemoveHeight) {
+    update(x, y, shouldRemoveHeight, shouldRemoveTile) {
         return () => {
             const clickedHex = layout.pixelToHex(new Point(x, y)).round();
-            const hexExists = this.selectedHexes.findIndex(hex => hex.location.isSame(clickedHex));
+            const hexIndex = this.selectedHexes.findIndex(hex => hex.location.isSame(clickedHex));
 
-            if (hexExists === -1) {
+            if (hexIndex === -1) {
                 this.selectedHexes.push({
                     location: clickedHex,
                     height: 0
                 });
             } else {
                 if (shouldRemoveHeight) {
-                    if (this.selectedHexes[hexExists].height > this.minHeight) {
-                        --this.selectedHexes[hexExists].height;
+                    if (this.selectedHexes[hexIndex].height > this.minHeight) {
+                        --this.selectedHexes[hexIndex].height;
                     }
                 } else {
-                    if (this.selectedHexes[hexExists].height < this.maxHeight) {
-                        ++this.selectedHexes[hexExists].height;
+                    if (this.selectedHexes[hexIndex].height < this.maxHeight) {
+                        ++this.selectedHexes[hexIndex].height;
                     }
                 }
+
+                if (shouldRemoveTile) this.selectedHexes.splice(hexIndex, 1);
             }
 
             this.clear();
@@ -183,6 +185,16 @@ document.addEventListener('click', event => {
         map.shouldRAF = false;
         requestAnimationFrame(
             map.update(event.clientX, event.clientY, event.altKey)
+        );
+    }
+});
+
+document.addEventListener('contextmenu', event => {
+    event.preventDefault();
+    if (map.shouldRAF) {
+        map.shouldRAF = false;
+        requestAnimationFrame(
+            map.update(event.clientX, event.clientY, event.altKey, true)
         );
     }
 });
