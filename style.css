@@ -1,3 +1,10 @@
+:root {
+  --grass: green;
+  --water: blue;
+  --stone: gray;
+  --dessert: yellow;
+}
+
 body {
   margin: 0;
 }
@@ -8,4 +15,45 @@ canvas {
   position: absolute;
   top: 0;
   left: 0;
+}
+
+#menu {
+  height: 11vh;
+  width: 66vw;
+  background-color: rgba(0, 180, 180, 50%);
+  position: fixed;
+  bottom: 0;
+  border-radius: 1rem 1rem 0 0;
+  left: calc(50vw - 33vw);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: end;
+  justify-items: center;
+}
+
+.tileTypeSelector {
+  cursor: pointer;
+  font-size: 2rem;
+  text-align: center;
+  line-height: 2rem;
+}
+
+.swatch:before {
+  content: "\2B22";
+}
+
+#grass {
+  color: var(--grass);
+}
+
+#water {
+  color: var(--water);
+}
+
+#stone {
+  color: var(--stone);
+}
+
+#dessert {
+  color: var(--dessert);
 }

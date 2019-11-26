@@ -1,9 +1,9 @@
 class Canvas {
     constructor(selector, draw) {
         this.canvas = document.querySelector(selector);
-        this.ctx = this.canvas.getContext('2d');
+        this.ctx = this.canvas.getContext(`2d`);
         this.shouldRAF = true;
-        this.draw = draw;
+        this.drawCanvas = draw;
 
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
@@ -15,52 +15,97 @@ class Canvas {
         this.canvas.height = window.innerHeight;
     }
 
-    update(x, y, filled) {
-        return () => {
-            this.clear();
-            this.draw(
+    update(points, ...args) {
+        this.clear();
+        points.forEach(point => {
+            this.drawCanvas(
                 layout.polygonCorners(
                     layout.pixelToHex(
-                        new Point(x, y)
+                        new Point(point.x, point.y)
                     ).round()
                 ),
-                filled
-            );
-            this.shouldRAF = true;
-        }
+                ...args
+            )
+        });
+        this.shouldRAF = true;
     }
 }
 
-class Grid extends Canvas {
+class HexDrawer extends Canvas {
     constructor(selector, draw) {
         super(selector, draw);
     }
 
-    update(x, y) {
-        return () => {
-            const newHex = layout.pixelToHex(new Point(x, y)).round();
-            this.selectedHexes.push(newHex);
+    drawHex(hex, filled, options = { color: `black` }) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(hex[0].x, hex[0].y);
 
-            this.clear();
+        for (let point of hex) {
+            this.ctx.lineTo(point.x, point.y);
+        }
 
-            this.selectedHexes.forEach(hex => {
-                this.draw(layout.polygonCorners(hex), true);
-            });
+        this.ctx.lineTo(hex[0].x, hex[0].y);
+        this.ctx.fillStyle = options.color;
 
-            this.shouldRAF = true;
+        if (filled) {
+            this.ctx.fill();
+        } else {
+            this.ctx.stroke();
         }
     }
 }
 
-class Map extends Canvas {
+class Grid extends HexDrawer {
+    constructor(selector) {
+        super(selector);
+    }
+
+    drawGrid(layout) {
+        return () => {
+            for (let qq = 0; qq < window.innerWidth; qq++) {
+                const qOffset = Math.floor(qq / 2);
+                for (let rr = -qOffset; rr < window.innerHeight - qOffset; rr++) {
+                    this.drawHex(layout.polygonCorners(new Hex(qq, rr, -qq - rr)));
+                }
+            }
+        }
+    }
+}
+
+class Map extends HexDrawer {
     constructor(selector, draw) {
         super(selector, draw);
         this.selectedHexes = [];
         this.maxHeight = 4;
         this.minHeight = -4;
+        this.tileType = `grass`;
+        this.hue = 120;
+        this.shouldRemoveHeight = false;
+        this.shouldRemoveTile = false;
     }
 
-    update(x, y, shouldRemoveHeight, shouldRemoveTile) {
+    setTileType(type) {
+        this.tileType = type;
+
+        switch (type) {
+            case `grass`:
+                this.hue = 120;
+                break;
+            case `water`:
+                this.hue = 250;
+                break;
+            case `stone`:
+                this.hue = 200;
+                break;
+            case `dessert`:
+                this.hue = 50;
+                break;
+            default:
+                break;
+        }
+    }
+
+    update(x, y, layout) {
         return () => {
             const clickedHex = layout.pixelToHex(new Point(x, y)).round();
             const hexIndex = this.selectedHexes.findIndex(hex => hex.location.isSame(clickedHex));
@@ -68,10 +113,12 @@ class Map extends Canvas {
             if (hexIndex === -1) {
                 this.selectedHexes.push({
                     location: clickedHex,
+                    hue: this.hue,
                     height: 0
                 });
             } else {
-                if (shouldRemoveHeight) {
+                if (this.shouldRemoveHeight) {
+                    this.shouldRemoveHeight = false;
                     if (this.selectedHexes[hexIndex].height > this.minHeight) {
                         --this.selectedHexes[hexIndex].height;
                     }
@@ -81,17 +128,20 @@ class Map extends Canvas {
                     }
                 }
 
-                if (shouldRemoveTile) this.selectedHexes.splice(hexIndex, 1);
+                if (this.shouldRemoveTile) {
+                    this.shouldRemoveTile = false;
+                    this.selectedHexes.splice(hexIndex, 1);
+                }
             }
 
             this.clear();
 
             this.selectedHexes.forEach(hex => {
-                this.draw(
+                this.drawHex(
                     layout.polygonCorners(hex.location),
                     true,
                     {
-                        color: `hsl(${120 + hex.height * 5}, ${50 + hex.height * 10}%, ${50 + hex.height * 10}%)`
+                        color: `hsl(${hex.hue + hex.height * 5}, ${50 + hex.height * 10}%, ${50 + hex.height * 10}%)`
                     }
                 );
             });
@@ -101,107 +151,87 @@ class Map extends Canvas {
     }
 }
 
-class Mouse extends Canvas {
-    constructor(selector, draw) {
-        super(selector, draw);
+class Mouse extends HexDrawer {
+    constructor(selector) {
+        super(selector);
     }
 
-    update(x, y) {
+    drawMouse(x, y, layout, ...args) {
         return () => {
-            const newHex = layout.pixelToHex(new Point(x, y)).round();
-            this.selectedHexes.push(newHex);
-
             this.clear();
-
-            this.selectedHexes.forEach(hex => {
-                this.draw(
-                    layout.polygonCorners(hex),
-                    true,
-                    {
-                        color: "blue"
-                    }
-                );
-            });
-
+            this.drawHex(
+                layout.polygonCorners(
+                    layout.pixelToHex(
+                        new Point(x, y)
+                    ).round()
+                ),
+                true,
+                ...args
+            );
             this.shouldRAF = true;
         }
     }
 }
-
-function drawHex(hex, filled, options = { color: "black" }) {
-    this.ctx.beginPath();
-    this.ctx.moveTo(hex[0].x, hex[0].y);
-
-    for (let point of hex) {
-        this.ctx.lineTo(point.x, point.y);
+class Game {
+    constructor() {
+        this.layout = new Layout(
+            Layout.flat,
+            new Point(28.0, 12.0),
+            new Point(0, 0)
+        );
     }
 
-    this.ctx.lineTo(hex[0].x, hex[0].y);
-    this.ctx.fillStyle = options.color;
+    start(container) {
+        this.grid = new Grid(`${container} > #grid`);
+        this.map = new Map(`#map`);
+        this.mouse = new Mouse(`#mouse`);
 
-    if (filled) {
-        this.ctx.fill();
-    } else {
-        this.ctx.stroke();
+        requestAnimationFrame(this.grid.drawGrid(this.layout));
+
+        document.querySelector(container)
+            .addEventListener(`mousemove`, event => {
+                if (this.mouse.shouldRAF) {
+                    this.mouse.shouldRAF = false;
+                    requestAnimationFrame(
+                        this.mouse.drawMouse(event.clientX, event.clientY, this.layout)
+                    );
+                }
+            });
+
+        document.querySelector(container)
+            .querySelectorAll(`.tileTypeSelector`)
+            .forEach(node => {
+                node.addEventListener(`click`, event => {
+                    event.stopPropagation();
+                    this.map.setTileType(event.currentTarget.dataset.tileType);
+                })
+            });
+
+        document.querySelector(container)
+            .addEventListener(`click`, event => {
+                if (this.map.shouldRAF) {
+                    this.map.shouldRAF = false;
+                    this.map.shouldRemoveHeight = event.altKey;
+                    requestAnimationFrame(
+                        this.map.update(event.clientX, event.clientY, this.layout)
+                    );
+                }
+            });
+
+        document.querySelector(container)
+            .addEventListener(`contextmenu`, event => {
+                event.preventDefault();
+                if (this.map.shouldRAF) {
+                    this.map.shouldRAF = false;
+                    this.map.shouldRemoveTile = true;
+                    requestAnimationFrame(
+                        this.map.update(event.clientX, event.clientY, this.layout)
+                    );
+                }
+            });
     }
 }
 
-function drawMap(layout) {
-    return function () {
-        for (let qq = 0; qq < window.innerWidth; qq++) {
-            const qOffset = Math.floor(qq / 2);
-            for (let rr = -qOffset; rr < window.innerHeight - qOffset; rr++) {
-                drawHex.call(this, layout.polygonCorners(new Hex(qq, rr, -qq - rr)));
-            }
-        }
-    }
-}
+const game = new Game();
 
-const layout = new Layout(
-    Layout.flat,
-    new Point(28.0, 12.0),
-    new Point(0, 0)
-);
-
-const grid = new Canvas('#grid', drawMap(layout));
-
-requestAnimationFrame(grid.draw.bind(grid));
-
-const mouse = new Canvas('#mouse', drawHex);
-
-document.addEventListener('mousemove', event => {
-    if (mouse.shouldRAF) {
-        mouse.shouldRAF = false;
-        requestAnimationFrame(
-            mouse.update(event.clientX, event.clientY, true)
-        );
-    }
-});
-
-const map = new Map('#map', drawHex);
-
-document.addEventListener('click', event => {
-    if (map.shouldRAF) {
-        map.shouldRAF = false;
-        requestAnimationFrame(
-            map.update(event.clientX, event.clientY, event.altKey)
-        );
-    }
-});
-
-document.addEventListener('contextmenu', event => {
-    event.preventDefault();
-    if (map.shouldRAF) {
-        map.shouldRAF = false;
-        requestAnimationFrame(
-            map.update(event.clientX, event.clientY, event.altKey, true)
-        );
-    }
-});
-
-window.onresize = () => {
-    if (grid.shouldRAF && mouse.shouldRAF) {
-        grid.update().call(grid);
-        mouse.update(event.clientX, event.clientY, true)();
-    }
-};
+game.start(`#game`);

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,12 +8,33 @@
     <link rel="stylesheet" href="style.css">
     <title>Hex Placer</title>
 </head>
+
 <body>
-    <main></main>
-    <canvas id="grid"></canvas>
-    <canvas id="map"></canvas>
-    <canvas id="mouse"></canvas>
+    <main id="game">
+        <canvas id="grid"></canvas>
+        <canvas id="map"></canvas>
+        <canvas id="mouse"></canvas>
+        <div id="menu">
+            <div class="tileTypeSelector" id="grass" data-tile-type="grass">
+                <div class="swatch"></div>
+                <div class="swatchLabel">Grass</div>
+            </div>
+            <div class="tileTypeSelector" id="water" data-tile-type="water">
+                <div class="swatch"></div>
+                <div class="swatchLabel">Water</div>
+            </div>
+            <div class="tileTypeSelector" id="stone" data-tile-type="stone">
+                <div class="swatch"></div>
+                <div class="swatchLabel">Stone</div>
+            </div>
+            <div class="tileTypeSelector" id="dessert" data-tile-type="dessert">
+                <div class="swatch"></div>
+                <div class="swatchLabel">Dessert</div>
+            </div>
+        </div>
+    </main>
     <script src="./lib.js"></script>
     <script src="./main.js"></script>
 </body>
+
 </html>
