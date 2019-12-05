@@ -19,19 +19,18 @@ canvas {
 
 #menu {
   height: 11vh;
-  width: 66vw;
+  width: 100vw;
   background-color: rgba(0, 180, 180, 50%);
   position: fixed;
   bottom: 0;
   border-radius: 1rem 1rem 0 0;
-  left: calc(50vw - 33vw);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   align-items: end;
   justify-items: center;
 }
 
-.tileTypeSelector {
+#menu > * {
   cursor: pointer;
   font-size: 2rem;
   text-align: center;
@@ -56,4 +55,10 @@ canvas {
 
 #dessert {
   color: var(--dessert);
+}
+
+.rotate {
+  height: 100%;
+  display: flex;
+  align-items: center;
 }

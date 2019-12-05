@@ -56,18 +56,17 @@ class HexDrawer extends Canvas {
 }
 
 class Grid extends HexDrawer {
-    constructor(selector) {
+    constructor(selector, size) {
         super(selector);
+
+        this.size = size;
     }
 
-    drawGrid(layout) {
+    drawGrid(layout, size) {
         return () => {
-            for (let qq = 0; qq < window.innerWidth; qq++) {
-                const qOffset = Math.floor(qq / 2);
-                for (let rr = -qOffset; rr < window.innerHeight - qOffset; rr++) {
-                    this.drawHex(layout.polygonCorners(new Hex(qq, rr, -qq - rr)));
-                }
-            }
+            makeHexagonalShape(size || this.size).forEach(hex => {
+                this.drawHex(layout.polygonCorners(hex));
+            });
         }
     }
 }
@@ -82,6 +81,15 @@ class Map extends HexDrawer {
         this.hue = 120;
         this.shouldRemoveHeight = false;
         this.shouldRemoveTile = false;
+    }
+
+
+    rotate(direction) {
+        if (direction === undefined) throw new Error("Direction for rotation is undefined");
+        this.selectedHexes.forEach(hex => {
+            const rotation = `rotate${direction}`;
+            hex.location = hex.location[rotation]();
+        });
     }
 
     setTileType(type) {
@@ -173,22 +181,45 @@ class Mouse extends HexDrawer {
     }
 }
 class Game {
-    constructor() {
+    constructor(orientation) {
+        this.hexWidth = 28;
+        this.hexHeight = 12;
         this.layout = new Layout(
-            Layout.flat,
-            new Point(28.0, 12.0),
-            new Point(0, 0)
+            orientation,
+            new Point(this.hexWidth, this.hexHeight),
+            new Point(window.innerWidth / 2, window.innerHeight / 2)
         );
     }
 
+    update() {
+        requestAnimationFrame(() => {
+            this.grid.clear();
+            this.map.clear();
+            this.grid.drawGrid(this.layout)();
+            this.map.update(0, 0, this.layout)();
+        });
+    }
+
+    rotate(direction) {
+        this.map.rotate(direction);
+        this.update();
+    }
+
     start(container) {
-        this.grid = new Grid(`${container} > #grid`);
+        const containerElement = document.querySelector(container);
+        const containerWidth = containerElement.clientWidth;
+        const containerHeight = containerElement.clientHeight;
+        const gridWidth = containerWidth / this.hexWidth / 2;
+        const gridHeight = containerHeight / this.hexHeight / 2;
+        const hexSize = Math.ceil(Math.max(gridWidth, gridHeight));
+
+        this.grid = new Grid(`${container} > #grid`, hexSize);
         this.map = new Map(`#map`);
         this.mouse = new Mouse(`#mouse`);
 
         requestAnimationFrame(this.grid.drawGrid(this.layout));
 
-        document.querySelector(container)
+        containerElement
             .addEventListener(`mousemove`, event => {
                 if (this.mouse.shouldRAF) {
                     this.mouse.shouldRAF = false;
@@ -198,7 +229,7 @@ class Game {
                 }
             });
 
-        document.querySelector(container)
+        containerElement
             .querySelectorAll(`.tileTypeSelector`)
             .forEach(node => {
                 node.addEventListener(`click`, event => {
@@ -207,7 +238,21 @@ class Game {
                 })
             });
 
-        document.querySelector(container)
+        containerElement
+            .querySelector(`#rotateLeft`)
+            .addEventListener(`click`, event => {
+                event.stopPropagation();
+                this.rotate(`Left`);
+            });
+
+        containerElement
+            .querySelector(`#rotateRight`)
+            .addEventListener(`click`, event => {
+                event.stopPropagation();
+                this.rotate(`Right`);
+            });
+
+        containerElement
             .addEventListener(`click`, event => {
                 if (this.map.shouldRAF) {
                     this.map.shouldRAF = false;
@@ -218,7 +263,7 @@ class Game {
                 }
             });
 
-        document.querySelector(container)
+        containerElement
             .addEventListener(`contextmenu`, event => {
                 event.preventDefault();
                 if (this.map.shouldRAF) {
@@ -232,6 +277,9 @@ class Game {
     }
 }
 
-const game = new Game();
+const pointy = new Orientation(Math.sqrt(3.0), Math.sqrt(3.0) / 2.0, 0.0, 3.0 / 2.0, Math.sqrt(3.0) / 3.0, -1.0 / 3.0, 0.0, 2.0 / 3.0, 0.5);
+const flat = new Orientation(3.0 / 2.0, 0.0, Math.sqrt(3.0) / 2.0, Math.sqrt(3.0), 2.0 / 3.0, 0.0, -1.0 / 3.0, Math.sqrt(3.0) / 3.0, 0.0);
+
+const game = new Game(flat);
 
 game.start(`#game`);

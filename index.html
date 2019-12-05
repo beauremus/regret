@@ -10,11 +10,14 @@
 </head>
 
 <body>
-    <main id="game">
+    <main id="game" style="width: 100vw;height: 100vh;">
         <canvas id="grid"></canvas>
         <canvas id="map"></canvas>
         <canvas id="mouse"></canvas>
         <div id="menu">
+            <div id="rotateLeft" class="rotate">
+                <span>Left</span>
+            </div>
             <div class="tileTypeSelector" id="grass" data-tile-type="grass">
                 <div class="swatch"></div>
                 <div class="swatchLabel">Grass</div>
@@ -31,9 +34,13 @@
                 <div class="swatch"></div>
                 <div class="swatchLabel">Dessert</div>
             </div>
+            <div id="rotateRight" class="rotate">
+                <span>Right</span>
+            </div>
         </div>
     </main>
     <script src="./lib.js"></script>
+    <script src="./util.js"></script>
     <script src="./main.js"></script>
 </body>
 
