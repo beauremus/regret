@@ -3,6 +3,7 @@
   --water: blue;
   --stone: gray;
   --dessert: yellow;
+  user-select: none;
 }
 
 body {
