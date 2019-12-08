@@ -15,19 +15,15 @@ class Canvas {
         this.canvas.height = window.innerHeight;
     }
 
-    update(points, ...args) {
-        this.clear();
-        points.forEach(point => {
-            this.drawCanvas(
-                layout.polygonCorners(
-                    layout.pixelToHex(
-                        new Point(point.x, point.y)
-                    ).round()
-                ),
-                ...args
-            )
-        });
-        this.shouldRAF = true;
+    animate(callback) {
+        if (this.shouldRAF) {
+            this.shouldRAF = false;
+            requestAnimationFrame(() => {
+                this.clear();
+                callback();
+                this.shouldRAF = true;
+            });
+        }
     }
 }
 
@@ -56,24 +52,24 @@ class HexDrawer extends Canvas {
 }
 
 class Grid extends HexDrawer {
-    constructor(selector, size) {
+    constructor(selector, size, layout) {
         super(selector);
-
         this.size = size;
+        this.layout = layout;
     }
 
-    drawGrid(layout, size) {
-        return () => {
-            makeHexagonalShape(size || this.size).forEach(hex => {
+    draw({ size, layout } = { size: this.size, layout: this.layout }) {
+        this.animate(() => {
+            makeHexagonalShape(size).forEach(hex => {
                 this.drawHex(layout.polygonCorners(hex));
             });
-        }
+        })
     }
 }
 
 class Map extends HexDrawer {
-    constructor(selector, draw) {
-        super(selector, draw);
+    constructor(selector, layout) {
+        super(selector);
         this.selectedHexes = [];
         this.maxHeight = 4;
         this.minHeight = -4;
@@ -81,6 +77,7 @@ class Map extends HexDrawer {
         this.hue = 120;
         this.shouldRemoveHeight = false;
         this.shouldRemoveTile = false;
+        this.layout = layout;
     }
 
 
@@ -90,6 +87,8 @@ class Map extends HexDrawer {
             const rotation = `rotate${direction}`;
             hex.location = hex.location[rotation]();
         });
+
+        this.draw();
     }
 
     setTileType(type) {
@@ -113,37 +112,8 @@ class Map extends HexDrawer {
         }
     }
 
-    update(x, y, layout) {
-        return () => {
-            const clickedHex = layout.pixelToHex(new Point(x, y)).round();
-            const hexIndex = this.selectedHexes.findIndex(hex => hex.location.isSame(clickedHex));
-
-            if (hexIndex === -1) {
-                this.selectedHexes.push({
-                    location: clickedHex,
-                    hue: this.hue,
-                    height: 0
-                });
-            } else {
-                if (this.shouldRemoveHeight) {
-                    this.shouldRemoveHeight = false;
-                    if (this.selectedHexes[hexIndex].height > this.minHeight) {
-                        --this.selectedHexes[hexIndex].height;
-                    }
-                } else {
-                    if (this.selectedHexes[hexIndex].height < this.maxHeight) {
-                        ++this.selectedHexes[hexIndex].height;
-                    }
-                }
-
-                if (this.shouldRemoveTile) {
-                    this.shouldRemoveTile = false;
-                    this.selectedHexes.splice(hexIndex, 1);
-                }
-            }
-
-            this.clear();
-
+    draw(layout = this.layout) {
+        this.animate(() => {
             this.selectedHexes.forEach(hex => {
                 this.drawHex(
                     layout.polygonCorners(hex.location),
@@ -153,9 +123,39 @@ class Map extends HexDrawer {
                     }
                 );
             });
+        });
+    }
 
-            this.shouldRAF = true;
+    updateTile(x, y, layout) {
+        const clickedHex = layout.pixelToHex(new Point(x, y)).round();
+        const hexIndex = this.selectedHexes.findIndex(hex => hex.location.isSame(clickedHex));
+
+        // Add hex to list if one doesn't exist
+        if (hexIndex === -1) {
+            this.selectedHexes.push({
+                location: clickedHex,
+                hue: this.hue,
+                height: 0
+            });
+        } else { // Modify existing hex
+            if (this.shouldRemoveHeight) {
+                this.shouldRemoveHeight = false;
+                if (this.selectedHexes[hexIndex].height > this.minHeight) {
+                    --this.selectedHexes[hexIndex].height;
+                }
+            } else {
+                if (this.selectedHexes[hexIndex].height < this.maxHeight) {
+                    ++this.selectedHexes[hexIndex].height;
+                }
+            }
+
+            if (this.shouldRemoveTile) {
+                this.shouldRemoveTile = false;
+                this.selectedHexes.splice(hexIndex, 1);
+            }
         }
+
+        this.draw(layout);
     }
 }
 
@@ -165,8 +165,7 @@ class Mouse extends HexDrawer {
     }
 
     drawMouse(x, y, layout, ...args) {
-        return () => {
-            this.clear();
+        this.animate(() => {
             this.drawHex(
                 layout.polygonCorners(
                     layout.pixelToHex(
@@ -176,10 +175,10 @@ class Mouse extends HexDrawer {
                 true,
                 ...args
             );
-            this.shouldRAF = true;
-        }
+        });
     }
 }
+
 class Game {
     constructor(orientation) {
         this.hexWidth = 28;
@@ -192,17 +191,12 @@ class Game {
     }
 
     update() {
-        requestAnimationFrame(() => {
-            this.grid.clear();
-            this.map.clear();
-            this.grid.drawGrid(this.layout)();
-            this.map.update(0, 0, this.layout)();
-        });
+        this.grid.draw();
+        this.map.draw();
     }
 
     rotate(direction) {
         this.map.rotate(direction);
-        this.update();
     }
 
     start(container) {
@@ -213,20 +207,15 @@ class Game {
         const gridHeight = containerHeight / this.hexHeight / 2;
         const hexSize = Math.ceil(Math.max(gridWidth, gridHeight));
 
-        this.grid = new Grid(`${container} > #grid`, hexSize);
-        this.map = new Map(`#map`);
-        this.mouse = new Mouse(`#mouse`);
+        this.grid = new Grid(`${container} > #grid`, hexSize, this.layout);
+        this.map = new Map(`#map`, this.layout);
+        this.mouse = new Mouse(`#mouse`, this.layout);
 
-        requestAnimationFrame(this.grid.drawGrid(this.layout));
+        this.grid.draw();
 
         containerElement
             .addEventListener(`mousemove`, event => {
-                if (this.mouse.shouldRAF) {
-                    this.mouse.shouldRAF = false;
-                    requestAnimationFrame(
-                        this.mouse.drawMouse(event.clientX, event.clientY, this.layout)
-                    );
-                }
+                this.mouse.drawMouse(event.clientX, event.clientY, this.layout);
             });
 
         containerElement
@@ -254,32 +243,19 @@ class Game {
 
         containerElement
             .addEventListener(`click`, event => {
-                if (this.map.shouldRAF) {
-                    this.map.shouldRAF = false;
-                    this.map.shouldRemoveHeight = event.altKey;
-                    requestAnimationFrame(
-                        this.map.update(event.clientX, event.clientY, this.layout)
-                    );
-                }
+                this.map.shouldRemoveHeight = event.altKey;
+                this.map.updateTile(event.clientX, event.clientY, this.layout)
             });
 
         containerElement
             .addEventListener(`contextmenu`, event => {
                 event.preventDefault();
-                if (this.map.shouldRAF) {
-                    this.map.shouldRAF = false;
-                    this.map.shouldRemoveTile = true;
-                    requestAnimationFrame(
-                        this.map.update(event.clientX, event.clientY, this.layout)
-                    );
-                }
+                this.map.shouldRemoveTile = true;
+                this.map.updateTile(event.clientX, event.clientY, this.layout)
             });
     }
 }
 
-const pointy = new Orientation(Math.sqrt(3.0), Math.sqrt(3.0) / 2.0, 0.0, 3.0 / 2.0, Math.sqrt(3.0) / 3.0, -1.0 / 3.0, 0.0, 2.0 / 3.0, 0.5);
-const flat = new Orientation(3.0 / 2.0, 0.0, Math.sqrt(3.0) / 2.0, Math.sqrt(3.0), 2.0 / 3.0, 0.0, -1.0 / 3.0, Math.sqrt(3.0) / 3.0, 0.0);
-
-const game = new Game(flat);
+const game = new Game(Layout.flat);
 
 game.start(`#game`);
