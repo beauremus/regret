@@ -3,6 +3,7 @@
   --water: #533FDF;
   --stone: #B0B0B0;
   --dessert: #AAAB2B;
+  --clockwise: "\21BB";
   user-select: none;
 }
 
@@ -64,7 +65,28 @@ canvas {
 }
 
 .rotate {
-  height: 100%;
   display: flex;
   align-items: center;
+  position: fixed;
+  font-size: 6rem;
+  bottom: 0;
+  cursor: pointer;
+}
+
+#rotateLeft:before {
+  /* The "anticlockwise arrow has different style than clockwise */
+  transform:rotateY(180deg);
+  content: var(--clockwise);
+}
+
+#rotateLeft {
+  left: 0;
+}
+
+#rotateRight:before {
+  content: var(--clockwise);
+}
+
+#rotateRight {
+  right: 0;
 }
