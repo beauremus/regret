@@ -1,8 +1,8 @@
 :root {
-  --grass: green;
-  --water: blue;
-  --stone: gray;
-  --dessert: yellow;
+  --grass: #1D3F14;
+  --water: #533FDF;
+  --stone: #B0B0B0;
+  --dessert: #AAAB2B;
   user-select: none;
 }
 
@@ -19,43 +19,48 @@ canvas {
 }
 
 #menu {
-  height: 11vh;
-  width: 100vw;
-  background-color: rgba(0, 180, 180, 50%);
+  height: 100vh;
+  width: fit-content;
   position: fixed;
-  bottom: 0;
-  border-radius: 1rem 1rem 0 0;
+  left: 0;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  align-items: end;
-  justify-items: center;
+  justify-content: center;
+  grid-template-rows: repeat(auto-fit, 8rem);
+  padding-left: 1rem;
+  padding-top: 1rem;
 }
 
-#menu > * {
+.tileTypeSelector {
   cursor: pointer;
-  font-size: 2rem;
-  text-align: center;
-  line-height: 2rem;
 }
 
-.swatch:before {
-  content: "\2B22";
+.tileTypeSelector[selected] {
+  height: 7.2rem;
+  width: 7.2rem;
+  border-color: cyan;
+}
+
+.circle {
+  border: 2px solid black;
+  height: 7rem;
+  width: 7rem;
+  border-radius: 50%;
 }
 
 #grass {
-  color: var(--grass);
+  background-color: var(--grass);
 }
 
 #water {
-  color: var(--water);
+  background-color: var(--water);
 }
 
 #stone {
-  color: var(--stone);
+  background-color: var(--stone);
 }
 
 #dessert {
-  color: var(--dessert);
+  background-color: var(--dessert);
 }
 
 .rotate {

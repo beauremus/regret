@@ -14,30 +14,14 @@
         <canvas id="grid"></canvas>
         <canvas id="map"></canvas>
         <canvas id="mouse"></canvas>
-        <div id="menu">
-            <div id="rotateLeft" class="rotate">
-                <span>Left</span>
-            </div>
-            <div class="tileTypeSelector" id="grass" data-tile-type="grass">
-                <div class="swatch"></div>
-                <div class="swatchLabel">Grass</div>
-            </div>
-            <div class="tileTypeSelector" id="water" data-tile-type="water">
-                <div class="swatch"></div>
-                <div class="swatchLabel">Water</div>
-            </div>
-            <div class="tileTypeSelector" id="stone" data-tile-type="stone">
-                <div class="swatch"></div>
-                <div class="swatchLabel">Stone</div>
-            </div>
-            <div class="tileTypeSelector" id="dessert" data-tile-type="dessert">
-                <div class="swatch"></div>
-                <div class="swatchLabel">Dessert</div>
-            </div>
-            <div id="rotateRight" class="rotate">
-                <span>Right</span>
-            </div>
-        </div>
+        <nav id="menu">
+            <div class="tileTypeSelector circle" id="water" data-tile-type="water"></div>
+            <div class="tileTypeSelector circle" id="stone" data-tile-type="stone"></div>
+            <div class="tileTypeSelector circle" id="dessert" data-tile-type="dessert"></div>
+            <div class="tileTypeSelector circle" id="grass" data-tile-type="grass" selected></div>
+            <div id="rotateLeft" class="rotate"></div>
+            <div id="rotateRight" class="rotate"></div>
+        </nav>
     </main>
     <script src="./lib.js"></script>
     <script src="./util.js"></script>

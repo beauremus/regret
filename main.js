@@ -74,12 +74,11 @@ class Map extends HexDrawer {
         this.maxHeight = 4;
         this.minHeight = -4;
         this.tileType = `grass`;
-        this.hue = 120;
+        [this.hue, this.saturation, this.lightness] = hslFromSelector(`.tileTypeSelector[selected]`, `background-color`);
         this.shouldRemoveHeight = false;
         this.shouldRemoveTile = false;
         this.layout = layout;
     }
-
 
     rotate(direction) {
         if (direction === undefined) throw new Error("Direction for rotation is undefined");
@@ -93,23 +92,7 @@ class Map extends HexDrawer {
 
     setTileType(type) {
         this.tileType = type;
-
-        switch (type) {
-            case `grass`:
-                this.hue = 120;
-                break;
-            case `water`:
-                this.hue = 250;
-                break;
-            case `stone`:
-                this.hue = 200;
-                break;
-            case `dessert`:
-                this.hue = 50;
-                break;
-            default:
-                break;
-        }
+        [this.hue, this.saturation, this.lightness] = hslFromSelector(`#${type}`, `background-color`);
     }
 
     draw(layout = this.layout) {
@@ -119,7 +102,7 @@ class Map extends HexDrawer {
                     layout.polygonCorners(hex.location),
                     true,
                     {
-                        color: `hsl(${hex.hue + hex.height * 5}, ${50 + hex.height * 10}%, ${50 + hex.height * 10}%)`
+                        color: `hsl(${hex.hue + hex.height * 5}, ${hex.saturation + hex.height * 10}%, ${hex.lightness + hex.height * 10}%)`
                     }
                 );
             });
@@ -135,6 +118,8 @@ class Map extends HexDrawer {
             this.selectedHexes.push({
                 location: clickedHex,
                 hue: this.hue,
+                saturation: this.saturation,
+                lightness: this.lightness,
                 height: 0
             });
         } else { // Modify existing hex
@@ -223,6 +208,9 @@ class Game {
             .forEach(node => {
                 node.addEventListener(`click`, event => {
                     event.stopPropagation();
+                    document.querySelector(`.tileTypeSelector[selected]`)
+                        .toggleAttribute(`selected`);
+                    event.currentTarget.toggleAttribute(`selected`);
                     this.map.setTileType(event.currentTarget.dataset.tileType);
                 })
             });
