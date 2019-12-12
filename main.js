@@ -71,13 +71,31 @@ class Map extends HexDrawer {
     constructor(selector, layout) {
         super(selector);
         this.selectedHexes = [];
-        this.maxHeight = 4;
-        this.minHeight = -4;
+        this.maxHeight = 3;
+        this.minHeight = -3;
         this.tileType = `grass`;
         [this.hue, this.saturation, this.lightness] = hslFromSelector(`.tileTypeSelector[selected]`, `background-color`);
         this.shouldRemoveHeight = false;
         this.shouldRemoveTile = false;
         this.layout = layout;
+    }
+
+    pointToHex(x, y, layout) {
+        const localLayout = layout || this.layout;
+        return localLayout.pixelToHex(new Point(x, y)).round();
+    }
+
+    findHexFromPoint(x, y, layout) {
+        const localLayout = layout || this.layout;
+        const clickedHex = this.pointToHex(x, y, localLayout);
+        return this.selectedHexes.findIndex(hex => hex.location.isSame(clickedHex));
+    }
+
+    getTileHeight(x, y) {
+        const hexIndex = this.findHexFromPoint(x, y);
+        if (hexIndex !== -1)
+            return this.selectedHexes[hexIndex].height;
+        return null;
     }
 
     rotate(direction) {
@@ -110,8 +128,8 @@ class Map extends HexDrawer {
     }
 
     updateTile(x, y, layout) {
-        const clickedHex = layout.pixelToHex(new Point(x, y)).round();
-        const hexIndex = this.selectedHexes.findIndex(hex => hex.location.isSame(clickedHex));
+        const hexIndex = this.findHexFromPoint(x, y);
+        const clickedHex = this.pointToHex(x, y, layout);
 
         // Add hex to list if one doesn't exist
         if (hexIndex === -1) {
@@ -145,11 +163,16 @@ class Map extends HexDrawer {
 }
 
 class Mouse extends HexDrawer {
-    constructor(selector) {
+    constructor(selector, layout) {
         super(selector);
+        this.layout = layout;
+        this.x = 0;
+        this.y = 0;
     }
 
-    drawMouse(x, y, layout, ...args) {
+    drawMouse(x = this.x, y = this.y, layout = this.layout, ...args) {
+        this.x = x;
+        this.y = y
         this.animate(() => {
             this.drawHex(
                 layout.polygonCorners(
@@ -160,7 +183,55 @@ class Mouse extends HexDrawer {
                 true,
                 ...args
             );
-        });
+
+            const tileHeight = game.map.getTileHeight(x, y);
+            const minHeight = game.map.minHeight;
+            const maxHeight = game.map.maxHeight;
+            const tileCount = maxHeight - minHeight + 1;
+
+            if (tileHeight !== null) {
+                const xOffset = x - 30;
+                const height = 100;
+                const width = 20;
+                this.ctx.beginPath();
+                // x, y, radiusX, radiusY, rotation, startAngle, endAngle [, anticlockwise]
+                this.ctx.ellipse(xOffset, y, width, height, 0, 0, 2 * Math.PI);
+                this.ctx.lineWidth = 3;
+                this.ctx.stroke();
+                this.ctx.fillStyle = `purple`;
+                this.ctx.fill();
+                this.ctx.fillStyle = `gold`;
+                const xCentered = xOffset - width / 2 + 3;
+                const bottom = height - 10;
+                const heightDelta = (height * 2 - 14) / tileCount;
+                const ellipseBottom = y + bottom;
+                this.ctx.font = `bold 26px serif`;
+
+                for (let i = 0; i < tileCount; i++) {
+                    this.ctx.fillText(`${i + 1}`, xCentered, ellipseBottom - heightDelta * i);
+                }
+
+                // Clip around ellipse
+                this.ctx.beginPath();
+                this.ctx.ellipse(xOffset, y, width, height, 0, 0, 2 * Math.PI);
+                this.ctx.clip();
+                // Paint lines to highlight current tile height
+                this.ctx.beginPath();
+                this.ctx.strokeStyle = `gold`;
+                const leftX = xOffset - width;
+                const rightX = xOffset + width;
+                const linePadding = 5;
+                const normalizedTileHeight = tileHeight - minHeight + 1;
+
+                // Guiding lines around tile height indicator
+                this.ctx.moveTo(leftX, ellipseBottom - heightDelta * normalizedTileHeight + linePadding);
+                this.ctx.lineTo(rightX, ellipseBottom - heightDelta * normalizedTileHeight + linePadding);
+                this.ctx.moveTo(leftX, ellipseBottom - heightDelta * (normalizedTileHeight - 1) + linePadding);
+                this.ctx.lineTo(rightX, ellipseBottom - heightDelta * (normalizedTileHeight - 1) + linePadding);
+
+                this.ctx.stroke();
+            }
+        })
     }
 }
 
@@ -232,14 +303,16 @@ class Game {
         containerElement
             .addEventListener(`click`, event => {
                 this.map.shouldRemoveHeight = event.altKey;
-                this.map.updateTile(event.clientX, event.clientY, this.layout)
+                this.map.updateTile(event.clientX, event.clientY, this.layout);
+                this.mouse.drawMouse();
             });
 
         containerElement
             .addEventListener(`contextmenu`, event => {
                 event.preventDefault();
                 this.map.shouldRemoveTile = true;
-                this.map.updateTile(event.clientX, event.clientY, this.layout)
+                this.map.updateTile(event.clientX, event.clientY, this.layout);
+                this.mouse.drawMouse();
             });
     }
 }
