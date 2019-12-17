@@ -141,6 +141,13 @@ class Map extends HexDrawer {
                 height: 0
             });
         } else { // Modify existing hex
+            if (this.selectedHexes[hexIndex].hue !== this.hue) {
+                this.selectedHexes[hexIndex].hue = this.hue;
+                this.selectedHexes[hexIndex].saturation = this.saturation;
+                this.selectedHexes[hexIndex].lightness = this.lightness;
+                this.selectedHexes[hexIndex].height = -1;
+            }
+
             if (this.shouldRemoveHeight) {
                 this.shouldRemoveHeight = false;
                 if (this.selectedHexes[hexIndex].height > this.minHeight) {
