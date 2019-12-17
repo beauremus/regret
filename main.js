@@ -127,12 +127,12 @@ class Map extends HexDrawer {
         });
     }
 
-    updateTile(x, y, layout) {
+    updateTile(x, y, layout, add = true) {
         const hexIndex = this.findHexFromPoint(x, y);
         const clickedHex = this.pointToHex(x, y, layout);
 
         // Add hex to list if one doesn't exist
-        if (hexIndex === -1) {
+        if (hexIndex === -1 && add) {
             this.selectedHexes.push({
                 location: clickedHex,
                 hue: this.hue,
@@ -311,7 +311,7 @@ class Game {
             .addEventListener(`contextmenu`, event => {
                 event.preventDefault();
                 this.map.shouldRemoveTile = true;
-                this.map.updateTile(event.clientX, event.clientY, this.layout);
+                this.map.updateTile(event.clientX, event.clientY, this.layout, false);
                 this.mouse.drawMouse();
             });
     }
