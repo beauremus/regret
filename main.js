@@ -70,14 +70,26 @@ class Grid extends HexDrawer {
 class Map extends HexDrawer {
     constructor(selector, layout) {
         super(selector);
-        this.selectedHexes = [];
+        this.layout = layout;
+        let storedMap = localStorage.getItem('map');
+
+        if (storedMap) {
+            storedMap = JSON.parse(storedMap).map(hex => {
+                const { q, r, s } = hex.location;
+                hex.location = new Hex(q, r, s);
+                return hex;
+            });
+
+            this.draw();
+        }
+
+        this.selectedHexes = storedMap || [];
         this.maxHeight = 3;
         this.minHeight = -3;
         this.tileType = `grass`;
         [this.hue, this.saturation, this.lightness] = hslFromSelector(`.tileTypeSelector[selected]`, `background-color`);
         this.shouldRemoveHeight = false;
         this.shouldRemoveTile = false;
-        this.layout = layout;
     }
 
     pointToHex(x, y, layout) {
@@ -104,6 +116,8 @@ class Map extends HexDrawer {
             const rotation = `rotate${direction}`;
             hex.location = hex.location[rotation]();
         });
+
+        localStorage.setItem('map', JSON.stringify(this.selectedHexes));
 
         this.draw();
     }
@@ -164,6 +178,8 @@ class Map extends HexDrawer {
                 this.selectedHexes.splice(hexIndex, 1);
             }
         }
+
+        localStorage.setItem('map', JSON.stringify(this.selectedHexes));
 
         this.draw(layout);
     }
