@@ -91,3 +91,18 @@ function hslFromSelector(selector, attribute) {
         getComputedStyle(document.querySelector(selector))[attribute]
     );
 }
+
+// https://blog.bitsrc.io/understanding-throttling-and-debouncing-973131c1ba07
+function debounce(fn, timeout) {
+    this.timer = -1;
+
+    return {
+        hold: (...args) => {
+            if (this.timer !== -1) clearTimeout(this.timer);
+            this.timer = setTimeout(() => fn(...args), timeout);
+        },
+        clear: () => {
+            if (this.timer !== -1) clearTimeout(this.timer);
+        }
+    }
+}
