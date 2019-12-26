@@ -90,11 +90,10 @@ class Map extends HexDrawer {
         this.minHeight = -3;
         this.tileType = `grass`;
         [this.hue, this.saturation, this.lightness] = hslFromSelector(`.tileTypeSelector[selected]`, `background-color`);
-        this.shouldRemoveHeight = false;
-        this.shouldRemoveTile = false;
 
         this.holdWait = 200;
         this.click = debounce((x, y) => {
+            game.holding = true;
             const tileHeight = this.getTileHeight(x, y);
             const minHeight = this.minHeight;
             const maxHeight = this.maxHeight;
@@ -163,6 +162,12 @@ class Map extends HexDrawer {
         return null;
     }
 
+    refresh() {
+        localStorage.setItem('map', JSON.stringify(this.selectedHexes));
+
+        this.draw(this.layout);
+    }
+
     rotate(direction) {
         if (direction === undefined) throw new Error("Direction for rotation is undefined");
         this.selectedHexes.forEach(hex => {
@@ -170,9 +175,7 @@ class Map extends HexDrawer {
             hex.location = hex.location[rotation]();
         });
 
-        localStorage.setItem('map', JSON.stringify(this.selectedHexes));
-
-        this.draw();
+        this.refresh();
     }
 
     setTileType(type) {
@@ -194,47 +197,76 @@ class Map extends HexDrawer {
         });
     }
 
-    updateTile(x, y, layout, add = true) {
-        const hexIndex = this.findHexFromPoint(x, y);
-        const clickedHex = this.pointToHex(x, y, layout);
+    increaseHeight(hexIndex) {
+        if (hexIndex === -1) return;
+        if (this.selectedHexes[hexIndex].height < this.maxHeight) {
+            ++this.selectedHexes[hexIndex].height;
+        }
+    }
 
-        // Add hex to list if one doesn't exist
-        if (hexIndex === -1 && add) {
-            this.selectedHexes.push({
-                location: clickedHex,
-                hue: this.hue,
-                saturation: this.saturation,
-                lightness: this.lightness,
-                height: 0
-            });
+    decreaseHeight(hexIndex) {
+        if (hexIndex === -1) return;
+        if (this.selectedHexes[hexIndex].height > this.minHeight) {
+            --this.selectedHexes[hexIndex].height;
+        }
+    }
+
+    clearHexes() {
+        this.selectedHexes = [];
+        this.refresh();
+    }
+
+    removeHex({ x, y }) {
+        const hexIndex = this.findHexFromPoint(x, y);
+
+        if (hexIndex === -1) return;
+        this.selectedHexes.splice(hexIndex, 1);
+
+        this.refresh();
+    }
+
+    insert(hex) {
+        this.selectedHexes.push({
+            location: hex,
+            hue: this.hue,
+            saturation: this.saturation,
+            lightness: this.lightness,
+            height: 0
+        });
+    }
+
+    updateType(hexIndex) {
+        this.selectedHexes[hexIndex].hue = this.hue;
+        this.selectedHexes[hexIndex].saturation = this.saturation;
+        this.selectedHexes[hexIndex].lightness = this.lightness;
+        this.selectedHexes[hexIndex].height = -1;
+    }
+
+    upsert({ x, y, shouldDecreaseHeight } = { shouldDecreaseHeight: false }) {
+        const hexIndex = this.findHexFromPoint(x, y);
+        const clickedHex = this.pointToHex(x, y, this.layout);
+
+        // Hex doesn't exist
+        if (hexIndex === -1) {
+            if (shouldDecreaseHeight) {
+                // Trying to reduce height on tile that doesn't exist, bail out
+                return;
+            } else {
+                this.insert(clickedHex);
+            }
         } else { // Modify existing hex
             if (this.selectedHexes[hexIndex].hue !== this.hue) {
-                this.selectedHexes[hexIndex].hue = this.hue;
-                this.selectedHexes[hexIndex].saturation = this.saturation;
-                this.selectedHexes[hexIndex].lightness = this.lightness;
-                this.selectedHexes[hexIndex].height = -1;
+                this.updateType(hexIndex);
             }
 
-            if (this.shouldRemoveHeight) {
-                this.shouldRemoveHeight = false;
-                if (this.selectedHexes[hexIndex].height > this.minHeight) {
-                    --this.selectedHexes[hexIndex].height;
-                }
+            if (shouldDecreaseHeight) {
+                this.decreaseHeight(hexIndex);
             } else {
-                if (this.selectedHexes[hexIndex].height < this.maxHeight) {
-                    ++this.selectedHexes[hexIndex].height;
-                }
-            }
-
-            if (this.shouldRemoveTile) {
-                this.shouldRemoveTile = false;
-                this.selectedHexes.splice(hexIndex, 1);
+                this.increaseHeight(hexIndex);
             }
         }
 
-        localStorage.setItem('map', JSON.stringify(this.selectedHexes));
-
-        this.draw(layout);
+        this.refresh();
     }
 
     showHeight(x, y) {
@@ -243,6 +275,7 @@ class Map extends HexDrawer {
 
     hideHeight() {
         this.click.clear();
+        this.draw();
     }
 }
 
@@ -254,13 +287,13 @@ class Mouse extends HexDrawer {
         this.y = 0;
     }
 
-    drawMouse(x = this.x, y = this.y, layout = this.layout, ...args) {
+    drawMouse(x, y, ...args) {
         this.x = x;
         this.y = y;
         this.animate(() => {
             this.drawHex(
-                layout.polygonCorners(
-                    layout.pixelToHex(
+                this.layout.polygonCorners(
+                    this.layout.pixelToHex(
                         new Point(x, y)
                     ).round()
                 ),
@@ -284,6 +317,8 @@ class Game {
             new Point(this.hexWidth, this.hexHeight),
             new Point(window.innerWidth / 2, window.innerHeight / 2)
         );
+        this.holding = false;
+        this.preventMouseUp = false;
     }
 
     update() {
@@ -311,13 +346,14 @@ class Game {
 
         containerElement
             .addEventListener(`mousemove`, event => {
-                this.mouse.drawMouse(event.clientX, event.clientY, this.layout);
+                this.mouse.drawMouse(event.clientX, event.clientY);
             });
 
         containerElement
             .querySelectorAll(`.tileTypeSelector`)
             .forEach(node => {
                 node.addEventListener(`click`, event => {
+                    // Prevent ancestral container from running events
                     event.stopPropagation();
                     document.querySelector(`.tileTypeSelector[selected]`)
                         .toggleAttribute(`selected`);
@@ -329,6 +365,7 @@ class Game {
         containerElement
             .querySelector(`#rotateLeft`)
             .addEventListener(`click`, event => {
+                // Prevent ancestral container from running events
                 event.stopPropagation();
                 this.rotate(`Left`);
             });
@@ -336,15 +373,9 @@ class Game {
         containerElement
             .querySelector(`#rotateRight`)
             .addEventListener(`click`, event => {
+                // Prevent ancestral container from running events
                 event.stopPropagation();
                 this.rotate(`Right`);
-            });
-
-        containerElement
-            .addEventListener(`click`, event => {
-                this.map.shouldRemoveHeight = event.altKey;
-                this.map.updateTile(event.clientX, event.clientY, this.layout);
-                this.mouse.drawMouse();
             });
 
         containerElement
@@ -353,16 +384,29 @@ class Game {
             });
 
         containerElement
-            .addEventListener(`mouseup`, () => {
+            .addEventListener(`mouseup`, event => {
                 this.map.hideHeight();
+
+                if (this.preventMouseUp) {
+                    this.preventMouseUp = false;
+                } else {
+                    if (this.holding) {
+                        this.holding = false;
+                    } else {
+                        this.map.upsert({
+                            x: event.clientX,
+                            y: event.clientY,
+                            shouldDecreaseHeight: event.altKey
+                        });
+                    }
+                }
             });
 
         containerElement
             .addEventListener(`contextmenu`, event => {
                 event.preventDefault();
-                this.map.shouldRemoveTile = true;
-                this.map.updateTile(event.clientX, event.clientY, this.layout, false);
-                this.mouse.drawMouse();
+                this.preventMouseUp = true;
+                this.map.removeHex({ x: event.clientX, y: event.clientY });
             });
     }
 }
