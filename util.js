@@ -106,3 +106,71 @@ function debounce(fn, timeout) {
         }
     }
 }
+
+//#Source https://bit.ly/2neWfJ2
+const clampNumber = (num, a, b) => Math.max(
+    Math.min(num, Math.max(a, b)),
+    Math.min(a, b)
+);
+
+function drawHeightIndicator(
+    { ctx, x, y, minHeight, maxHeight, tileHeight }
+        = { minHeight: 1, maxHeight: 7 }
+) {
+    if (tileHeight === undefined) throw new Error(`Undefined tile height`);
+    const clampedTileHeight = clampNumber(tileHeight, minHeight, maxHeight);
+    const tileCount = maxHeight - minHeight + 1;
+    const xOffset = x - 30;
+    const height = 100;
+    const width = 20;
+
+    ctx.beginPath();
+    // x, y, radiusX, radiusY, rotation, startAngle, endAngle [, anticlockwise]
+    ctx.ellipse(xOffset, y, width, height, 0, 0, 2 * Math.PI);
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.fillStyle = `purple`;
+    ctx.fill();
+    ctx.fillStyle = `gold`;
+
+    const xCentered = xOffset - width / 2 + 3;
+    const bottom = height - 10;
+    const heightDelta = (height * 2 - 14) / tileCount;
+    const ellipseBottom = y + bottom;
+
+    ctx.font = `bold 26px serif`;
+
+    for (let i = 0; i < tileCount; i++) {
+        ctx.fillText(`${i + 1}`, xCentered, ellipseBottom - heightDelta * i);
+    }
+
+    // Clip around ellipse
+    ctx.beginPath();
+    ctx.ellipse(xOffset, y, width, height, 0, 0, 2 * Math.PI);
+    ctx.clip();
+
+    // Paint lines to highlight current tile height
+    ctx.beginPath();
+    ctx.strokeStyle = `gold`;
+
+    const leftX = xOffset - width;
+    const rightX = xOffset + width;
+    const linePadding = 5;
+    const normalizedTileHeight = clampedTileHeight - minHeight + 1;
+
+    // Guiding lines around tile height indicator
+    ctx.moveTo(leftX, ellipseBottom - heightDelta * normalizedTileHeight + linePadding);
+    ctx.lineTo(rightX, ellipseBottom - heightDelta * normalizedTileHeight + linePadding);
+    ctx.moveTo(leftX, ellipseBottom - heightDelta * (normalizedTileHeight - 1) + linePadding);
+    ctx.lineTo(rightX, ellipseBottom - heightDelta * (normalizedTileHeight - 1) + linePadding);
+
+    ctx.stroke();
+
+    return ({ newY }) => {
+        // deltaDiff is inverted to account for browser coordinates
+        const deltaDiff = -Math.floor((newY - y) / heightDelta);
+        const newTileHeight = clampedTileHeight + deltaDiff;
+        drawHeightIndicator({ ctx, x, y, minHeight, maxHeight, tileHeight: newTileHeight });
+        return newTileHeight;
+    }
+}

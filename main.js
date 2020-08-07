@@ -95,51 +95,17 @@ class Map extends HexDrawer {
         this.click = debounce((x, y) => {
             game.holding = true;
             const tileHeight = this.getTileHeight(x, y);
-            const minHeight = this.minHeight;
-            const maxHeight = this.maxHeight;
-            const tileCount = maxHeight - minHeight + 1;
 
             if (tileHeight !== null) {
-                const xOffset = x - 30;
-                const height = 100;
-                const width = 20;
-                this.ctx.beginPath();
-                // x, y, radiusX, radiusY, rotation, startAngle, endAngle [, anticlockwise]
-                this.ctx.ellipse(xOffset, y, width, height, 0, 0, 2 * Math.PI);
-                this.ctx.lineWidth = 3;
-                this.ctx.stroke();
-                this.ctx.fillStyle = `purple`;
-                this.ctx.fill();
-                this.ctx.fillStyle = `gold`;
-                const xCentered = xOffset - width / 2 + 3;
-                const bottom = height - 10;
-                const heightDelta = (height * 2 - 14) / tileCount;
-                const ellipseBottom = y + bottom;
-                this.ctx.font = `bold 26px serif`;
-
-                for (let i = 0; i < tileCount; i++) {
-                    this.ctx.fillText(`${i + 1}`, xCentered, ellipseBottom - heightDelta * i);
-                }
-
-                // Clip around ellipse
-                this.ctx.beginPath();
-                this.ctx.ellipse(xOffset, y, width, height, 0, 0, 2 * Math.PI);
-                this.ctx.clip();
-                // Paint lines to highlight current tile height
-                this.ctx.beginPath();
-                this.ctx.strokeStyle = `gold`;
-                const leftX = xOffset - width;
-                const rightX = xOffset + width;
-                const linePadding = 5;
-                const normalizedTileHeight = tileHeight - minHeight + 1;
-
-                // Guiding lines around tile height indicator
-                this.ctx.moveTo(leftX, ellipseBottom - heightDelta * normalizedTileHeight + linePadding);
-                this.ctx.lineTo(rightX, ellipseBottom - heightDelta * normalizedTileHeight + linePadding);
-                this.ctx.moveTo(leftX, ellipseBottom - heightDelta * (normalizedTileHeight - 1) + linePadding);
-                this.ctx.lineTo(rightX, ellipseBottom - heightDelta * (normalizedTileHeight - 1) + linePadding);
-
-                this.ctx.stroke();
+                this.updateHeightIndicator
+                    = drawHeightIndicator({
+                        ctx: this.ctx,
+                        x,
+                        y,
+                        minHeight: this.minHeight,
+                        maxHeight: this.maxHeight,
+                        tileHeight: tileHeight
+                    });
             }
         }, this.holdWait);
     }
@@ -162,10 +128,21 @@ class Map extends HexDrawer {
         return null;
     }
 
-    refresh() {
+    refresh(shouldDraw = true) {
         localStorage.setItem('map', JSON.stringify(this.selectedHexes));
 
+        if (shouldDraw)
         this.draw(this.layout);
+    }
+
+    setTileHeight(x, y, newHeight) {
+        const hexIndex = this.findHexFromPoint(x, y);
+        if (hexIndex !== -1) {
+            this.selectedHexes[hexIndex].height = newHeight;
+            this.refresh(false);
+            return newHeight;
+        }
+        return null;
     }
 
     rotate(direction) {
@@ -202,6 +179,8 @@ class Map extends HexDrawer {
         if (this.selectedHexes[hexIndex].height < this.maxHeight) {
             ++this.selectedHexes[hexIndex].height;
         }
+
+        this.refresh();
     }
 
     decreaseHeight(hexIndex) {
@@ -209,6 +188,8 @@ class Map extends HexDrawer {
         if (this.selectedHexes[hexIndex].height > this.minHeight) {
             --this.selectedHexes[hexIndex].height;
         }
+
+        this.refresh();
     }
 
     clearHexes() {
@@ -233,6 +214,8 @@ class Map extends HexDrawer {
             lightness: this.lightness,
             height: 0
         });
+
+        this.refresh();
     }
 
     updateType(hexIndex) {
@@ -265,8 +248,6 @@ class Map extends HexDrawer {
                 this.increaseHeight(hexIndex);
             }
         }
-
-        this.refresh();
     }
 
     showHeight(x, y) {
@@ -318,7 +299,7 @@ class Game {
             new Point(window.innerWidth / 2, window.innerHeight / 2)
         );
         this.holding = false;
-        this.preventMouseUp = false;
+        this.isMouseCaptured = false;
     }
 
     update() {
@@ -328,6 +309,14 @@ class Game {
 
     rotate(direction) {
         this.map.rotate(direction);
+    }
+
+    handleHeightAdjustment(originX, originY) {
+        return (event) => {
+            // TODO: NOT WORKING
+            const newHeight = this.map.updateHeightIndicator({ newY: event.clientY });
+            this.map.setTileHeight(originX, originY, newHeight);
+        }
     }
 
     start(container) {
@@ -355,8 +344,10 @@ class Game {
                 node.addEventListener(`click`, event => {
                     // Prevent ancestral container from running events
                     event.stopPropagation();
+                    // Turn off selected attribute on exiting selected element
                     document.querySelector(`.tileTypeSelector[selected]`)
                         .toggleAttribute(`selected`);
+                    // Turn on selected attribute on clicked element
                     event.currentTarget.toggleAttribute(`selected`);
                     this.map.setTileType(event.currentTarget.dataset.tileType);
                 })
@@ -381,14 +372,19 @@ class Game {
         containerElement
             .addEventListener(`mousedown`, event => {
                 this.map.showHeight(event.clientX, event.clientY);
+                this.eventStorage = this.handleHeightAdjustment(event.clientX, event.clientY);
+                containerElement
+                    .addEventListener(`mousemove`, this.eventStorage);
             });
 
         containerElement
             .addEventListener(`mouseup`, event => {
                 this.map.hideHeight();
+                containerElement
+                    .removeEventListener(`mousemove`, this.eventStorage);
 
-                if (this.preventMouseUp) {
-                    this.preventMouseUp = false;
+                if (this.isMouseCaptured) {
+                    this.isMouseCaptured = false;
                 } else {
                     if (this.holding) {
                         this.holding = false;
@@ -405,7 +401,7 @@ class Game {
         containerElement
             .addEventListener(`contextmenu`, event => {
                 event.preventDefault();
-                this.preventMouseUp = true;
+                this.isMouseCaptured = true;
                 this.map.removeHex({ x: event.clientX, y: event.clientY });
             });
     }
